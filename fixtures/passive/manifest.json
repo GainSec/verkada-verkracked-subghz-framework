@@ -1,0 +1,27 @@
+{
+  "artifacts": [
+    {
+      "classification": "synthetic",
+      "evidence_class": "analytically-modeled",
+      "exact_observed": false,
+      "format": "cf32_le",
+      "identifiers_sanitized": true,
+      "metadata": "fixtures/phy/type11-f27-normal-destination-4msps.json",
+      "path": "fixtures/phy/type11-f27-normal-destination-4msps.cf32",
+      "physically_validated": false,
+      "sha256": "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa"
+    },
+    {
+      "classification": "independently-reconstructed",
+      "evidence_class": "independently-reconstructed",
+      "exact_observed": false,
+      "format": "hex",
+      "identifiers_sanitized": true,
+      "path": "fixtures/protocol/type11-f27-normal-destination.hex",
+      "physically_validated": false,
+      "sha256": "c22a37cd1eb6497894a9c88adcf8c90eb36d82e63a67d0f4beb4d8c9a1a249be"
+    }
+  ],
+  "live_capture_present": false,
+  "schema": "bh61-passive-fixtures/v1"
+}

@@ -1,0 +1,20 @@
+{
+  "artifact": "type11-f27-normal-destination-4msps.cf32",
+  "datatype": "cf32_le",
+  "sample_rate": 4000000,
+  "sample_count": 13400,
+  "center_frequency_hz": null,
+  "classification": "synthetic",
+  "frame_hex": "1a41c800ff01010000000000000000000b00338b00000100000e3a",
+  "waveform_model": "analytic_half_sine_oqpsk",
+  "orientation": "even_chips_on_i",
+  "chip_polarity": "zero_is_positive",
+  "hardware_exact": false,
+  "identifiers_sanitized": true,
+  "physically_validated": false,
+  "duration_seconds": 0.00335,
+  "total_symbols": 67,
+  "total_chips": 2144,
+  "sha256": "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa",
+  "boundary": "Deterministic independently generated analytical candidate. It has not been demonstrated as bit-for-bit or waveform-exact against physical BH hardware."
+}

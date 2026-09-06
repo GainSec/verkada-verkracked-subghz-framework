@@ -1,0 +1,65 @@
+{
+  "schema": "bh-series-public-fixtures/v1",
+  "fixtures": [
+    {
+      "path": "fixtures/phy/dsss-dictionary.txt",
+      "classification": "independently-reconstructed",
+      "description": "Analytical DSSS symbol dictionary used by the public model",
+      "identifiers_sanitized": true,
+      "exact_observed": false,
+      "physically_validated": false,
+      "analytical_only": true,
+      "sha256": "1a7da6d53d748998080ff005ec107a09d071dd279ae51f0df856d9ca0fdba5ab"
+    },
+    {
+      "path": "fixtures/phy/type11-f27-normal-destination-4msps.cf32",
+      "classification": "synthetic",
+      "description": "Deterministic analytical complex-float waveform generated from the synthetic type-11 vector",
+      "identifiers_sanitized": true,
+      "exact_observed": false,
+      "physically_validated": false,
+      "analytical_only": true,
+      "sha256": "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa"
+    },
+    {
+      "path": "fixtures/phy/type11-f27-normal-destination-4msps.json",
+      "classification": "synthetic",
+      "description": "Machine-readable provenance sidecar for the analytical waveform",
+      "identifiers_sanitized": true,
+      "exact_observed": false,
+      "physically_validated": false,
+      "analytical_only": true,
+      "sha256": "4ae02c58c7b9edbf20aaf2b90aed05e2892cc944d3364d80b8e7997a81a5abec"
+    },
+    {
+      "path": "fixtures/protocol/reset-req.hex",
+      "classification": "independently-reconstructed",
+      "description": "Offline CRC input/checksum vector with no key or ciphertext",
+      "identifiers_sanitized": true,
+      "exact_observed": false,
+      "physically_validated": false,
+      "analytical_only": true,
+      "sha256": "f28b7d0fa3245676c0ad28095ff37b5858573246c7bf4346bbeeb6acb247f69c"
+    },
+    {
+      "path": "fixtures/protocol/type11-f27-normal-destination.hex",
+      "classification": "independently-reconstructed",
+      "description": "Offline type-11 frame generated with synthetic zero-valued source identity",
+      "identifiers_sanitized": true,
+      "exact_observed": false,
+      "physically_validated": false,
+      "analytical_only": true,
+      "sha256": "c22a37cd1eb6497894a9c88adcf8c90eb36d82e63a67d0f4beb4d8c9a1a249be"
+    },
+    {
+      "path": "research/efr32/corpus/manifest.json",
+      "classification": "synthetic",
+      "description": "Manifest covering every generated EFR32 parser seed and mutation fixture",
+      "identifiers_sanitized": true,
+      "exact_observed": false,
+      "physically_validated": false,
+      "analytical_only": true,
+      "sha256": "0f3ec16a505177a6841c84cf048456057a5217cb6a00f9ab1f916a0a510fa64b"
+    }
+  ]
+}

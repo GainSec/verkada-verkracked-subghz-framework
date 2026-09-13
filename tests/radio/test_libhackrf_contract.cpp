@@ -20,6 +20,14 @@ struct NativeState {
   std::vector<std::string> operations;
   hackrf_sample_block_cb_fn rx_callback{};
   void* rx_context{};
+  int start_tx_calls{};
+  int stop_tx_calls{};
+  int start_tx_result{HACKRF_SUCCESS};
+  hackrf_sample_block_cb_fn tx_callback{};
+  void* tx_context{};
+  hackrf_flush_cb_fn flush_callback{};
+  void* flush_context{};
+  std::vector<std::int8_t> transmitted;
   hackrf_device* handle{reinterpret_cast<hackrf_device*>(0x1234)};
   std::array<char*, 1> serials{};
   std::array<hackrf_usb_board_id, 1> board_ids{USB_BOARD_ID_HACKRF_ONE};
@@ -93,6 +101,10 @@ auto functions(NativeState& state) -> bh61::radio::LibhackrfFunctions {
         state.operations.emplace_back("vga");
         return HACKRF_SUCCESS;
       },
+      [&state](hackrf_device*, std::uint32_t) {
+        state.operations.emplace_back("tx_vga");
+        return HACKRF_SUCCESS;
+      },
       [&state](hackrf_device*, std::uint8_t) {
         state.operations.emplace_back("amp");
         return HACKRF_SUCCESS;
@@ -102,12 +114,47 @@ auto functions(NativeState& state) -> bh61::radio::LibhackrfFunctions {
         return HACKRF_SUCCESS;
       },
       [&state](hackrf_device*, hackrf_sample_block_cb_fn callback,
-               void* context) {
+               void* context) -> int {
         state.rx_callback = callback;
         state.rx_context = context;
         return HACKRF_SUCCESS;
       },
-      [](hackrf_device*) { return HACKRF_SUCCESS; }};
+      [](hackrf_device*) { return HACKRF_SUCCESS; },
+      [&state](hackrf_device*, hackrf_flush_cb_fn callback, void* context) {
+        state.flush_callback = callback;
+        state.flush_context = context;
+        return HACKRF_SUCCESS;
+      },
+      [&state](hackrf_device*, hackrf_sample_block_cb_fn callback,
+               void* context) -> int {
+        ++state.start_tx_calls;
+        if (state.start_tx_result != HACKRF_SUCCESS) {
+          return state.start_tx_result;
+        }
+        state.tx_callback = callback;
+        state.tx_context = context;
+        while (true) {
+          std::array<std::uint8_t, 4> buffer{};
+          hackrf_transfer transfer{};
+          transfer.buffer = buffer.data();
+          transfer.buffer_length = static_cast<int>(buffer.size());
+          transfer.valid_length = 0;
+          transfer.tx_ctx = context;
+          const auto done = callback(&transfer);
+          state.transmitted.insert(
+              state.transmitted.end(),
+              reinterpret_cast<const std::int8_t*>(buffer.data()),
+              reinterpret_cast<const std::int8_t*>(buffer.data()) +
+                  transfer.valid_length);
+          if (done != 0) break;
+        }
+        state.flush_callback(state.flush_context, HACKRF_SUCCESS);
+        return HACKRF_SUCCESS;
+      },
+      [&state](hackrf_device*) {
+        ++state.stop_tx_calls;
+        return HACKRF_SUCCESS;
+      }};
 }
 
 }  // namespace
@@ -149,7 +196,7 @@ BH61_TEST("libhackrf transport enumerates identity configures in safe order") {
     const auto realized = transport.configure(configuration);
     BH61_REQUIRE(realized.sample_rate == 4'000'000U);
     const std::vector<std::string> expected{
-        "sample_rate", "filter", "frequency", "lna", "vga", "amp",
+        "sample_rate", "filter", "frequency", "lna", "vga", "tx_vga", "amp",
         "antenna"};
     BH61_REQUIRE(state.operations == expected);
     transport.close();
@@ -197,5 +244,39 @@ BH61_TEST("libhackrf configuration error identifies the exact failing call") {
     BH61_REQUIRE(error.native_code() == HACKRF_ERROR_LIBUSB);
   }
   BH61_REQUIRE(failed);
+  transport.close();
+}
+
+BH61_TEST("libhackrf transmit streams every byte and stops after flush") {
+  NativeState state;
+  bh61::radio::LibhackrfTransport transport(functions(state));
+  transport.open("target");
+  constexpr std::array<std::int8_t, 6> samples{-128, 127, 1, 2, 3, 4};
+  transport.transmit(samples);
+  BH61_REQUIRE(state.start_tx_calls == 1);
+  BH61_REQUIRE(state.stop_tx_calls == 1);
+  BH61_REQUIRE(state.transmitted.size() == samples.size());
+  for (std::size_t index = 0; index < samples.size(); ++index) {
+    BH61_REQUIRE(state.transmitted[index] == samples[index]);
+  }
+  transport.close();
+}
+
+BH61_TEST("libhackrf transmit preserves start failure evidence") {
+  NativeState state;
+  state.start_tx_result = HACKRF_ERROR_LIBUSB;
+  bh61::radio::LibhackrfTransport transport(functions(state));
+  transport.open("target");
+  bool failed = false;
+  try {
+    constexpr std::array<std::int8_t, 2> samples{1, 2};
+    transport.transmit(samples);
+  } catch (const bh61::radio::NativeHackrfError& error) {
+    failed = true;
+    BH61_REQUIRE(error.operation() == "hackrf_start_tx");
+    BH61_REQUIRE(error.native_code() == HACKRF_ERROR_LIBUSB);
+  }
+  BH61_REQUIRE(failed);
+  BH61_REQUIRE(state.stop_tx_calls == 0);
   transport.close();
 }

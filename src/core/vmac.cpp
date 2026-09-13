@@ -58,9 +58,9 @@ auto parse_vmac(std::span<const std::uint8_t> psdu) -> VmacResult {
   if (destination_mode == destination_short_mode) {
     const std::array<std::uint8_t, 2> destination_bytes{psdu[5], psdu[6]};
     const auto destination = load_le16(destination_bytes);
-    if (destination != 1U && destination != 2U) {
+    if (destination > 2U) {
       return ParseError{ParseErrorCode::InvalidDestination, "VMAC", 5,
-                        "short destination must be coordinator address 1 or 2"};
+                        "short destination must be address 0, 1, or 2"};
     }
     frame.destination = destination;
     source_offset = 7;
@@ -107,9 +107,9 @@ auto encode_vmac(const VmacFrame& frame) -> std::vector<std::uint8_t> {
   encoded.insert(encoded.end(), pan.begin(), pan.end());
   if (short_destination) {
     const auto value = std::get<std::uint16_t>(frame.destination);
-    if (value != 1U && value != 2U) {
+    if (value > 2U) {
       throw std::invalid_argument(
-          "short destination must be coordinator address 1 or 2");
+          "short destination must be address 0, 1, or 2");
     }
     const auto destination = store_le16(value);
     encoded.insert(encoded.end(), destination.begin(), destination.end());

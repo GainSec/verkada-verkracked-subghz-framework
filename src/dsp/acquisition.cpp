@@ -56,7 +56,8 @@ auto score_candidate(std::span<const std::complex<float>> samples,
                          std::abs(correlation) / denominator};
 }
 
-auto better(const ScoredCandidate& left, const ScoredCandidate& right)
+auto better_scored_candidate(const ScoredCandidate& left,
+                             const ScoredCandidate& right)
     -> bool {
   if (left.score != right.score) {
     return left.score > right.score;
@@ -70,12 +71,26 @@ auto better(const ScoredCandidate& left, const ScoredCandidate& right)
   return left.carrier_correction_hz < right.carrier_correction_hz;
 }
 
+auto better_hypothesis(const AcquisitionHypothesis& left,
+                       const AcquisitionHypothesis& right) -> bool {
+  if (left.score != right.score) {
+    return left.score > right.score;
+  }
+  if (left.start_sample != right.start_sample) {
+    return left.start_sample < right.start_sample;
+  }
+  if (left.conjugated != right.conjugated) {
+    return !left.conjugated;
+  }
+  return left.carrier_offset_hz < right.carrier_offset_hz;
+}
+
 }  // namespace
 
-auto acquire_training(std::span<const std::complex<float>> samples,
-                      std::uint32_t sample_rate,
-                      const AcquisitionOptions& options)
-    -> AcquisitionResult {
+auto acquire_training_candidates(
+    std::span<const std::complex<float>> samples,
+    std::uint32_t sample_rate,
+    const AcquisitionOptions& options) -> AcquisitionCandidatesResult {
   if (sample_rate == 0U) {
     return AcquisitionError{"sample rate must be nonzero"};
   }
@@ -111,7 +126,8 @@ auto acquire_training(std::span<const std::complex<float>> samples,
     }
   }
 
-  std::sort(coarse_candidates.begin(), coarse_candidates.end(), better);
+  std::sort(coarse_candidates.begin(), coarse_candidates.end(),
+            better_scored_candidate);
   std::vector<ScoredCandidate> coarse_seeds;
   const auto region_separation = training.size() / 2U;
   for (const auto& candidate : coarse_candidates) {
@@ -132,8 +148,9 @@ auto acquire_training(std::span<const std::complex<float>> samples,
   }
 
   const auto radius = options.coarse_start_stride;
-  std::vector<ScoredCandidate> refined;
+  std::vector<AcquisitionHypothesis> hypotheses;
   for (const auto& seed : coarse_seeds) {
+    std::vector<ScoredCandidate> refined;
     const auto first_refined =
         seed.start > radius ? seed.start - radius : 0U;
     const auto last_refined = std::min(last_start, seed.start + radius);
@@ -146,31 +163,69 @@ auto acquire_training(std::span<const std::complex<float>> samples,
         }
       }
     }
+    std::sort(refined.begin(), refined.end(), better_scored_candidate);
+    if (refined.empty() || refined.front().score < options.minimum_score) {
+      continue;
+    }
+
+    auto winner = refined.front();
+    const auto equivalent_floor =
+        winner.score - options.equivalent_score_epsilon;
+    for (const auto& candidate : refined) {
+      if (candidate.score < equivalent_floor) {
+        break;
+      }
+      if (candidate.start < winner.start ||
+          (candidate.start == winner.start &&
+           better_scored_candidate(candidate, winner))) {
+        winner = candidate;
+      }
+    }
+    const auto runner_up = refined.size() > 1U ? refined[1].score : 0.0;
+    hypotheses.push_back(AcquisitionHypothesis{
+        winner.start, winner.conjugated, winner.carrier_correction_hz,
+        winner.phase, winner.score, runner_up, 0.0});
   }
-  std::sort(refined.begin(), refined.end(), better);
-  if (refined.empty() || refined.front().score < options.minimum_score) {
+  if (hypotheses.empty()) {
     return AcquisitionError{"no training hypothesis met the score threshold"};
   }
 
-  auto winner = refined.front();
+  std::sort(hypotheses.begin(), hypotheses.end(),
+            [](const AcquisitionHypothesis& left,
+               const AcquisitionHypothesis& right) {
+              return left.start_sample < right.start_sample;
+            });
+  return hypotheses;
+}
+
+auto acquire_training(std::span<const std::complex<float>> samples,
+                      std::uint32_t sample_rate,
+                      const AcquisitionOptions& options)
+    -> AcquisitionResult {
+  const auto acquired =
+      acquire_training_candidates(samples, sample_rate, options);
+  if (const auto* error = std::get_if<AcquisitionError>(&acquired)) {
+    return *error;
+  }
+
+  auto hypotheses = std::get<std::vector<AcquisitionHypothesis>>(acquired);
+  std::sort(hypotheses.begin(), hypotheses.end(), better_hypothesis);
+  auto winner = hypotheses.front();
+
   const auto equivalent_floor =
       winner.score - options.equivalent_score_epsilon;
-  for (const auto& candidate : refined) {
+  for (const auto& candidate : hypotheses) {
     if (candidate.score < equivalent_floor) {
       break;
     }
-    if (candidate.start < winner.start ||
-        (candidate.start == winner.start && better(candidate, winner))) {
+    if (candidate.start_sample < winner.start_sample ||
+        (candidate.start_sample == winner.start_sample &&
+         better_hypothesis(candidate, winner))) {
       winner = candidate;
     }
   }
-  const auto runner_up = refined.size() > 1U ? refined[1].score : 0.0;
-  return AcquisitionHypothesis{winner.start,
-                               winner.conjugated,
-                               winner.carrier_correction_hz,
-                               winner.phase,
-                               winner.score,
-                               runner_up};
+  winner.runner_up_score = hypotheses.size() > 1U ? hypotheses[1].score : 0.0;
+  return winner;
 }
 
 }  // namespace bh61::dsp

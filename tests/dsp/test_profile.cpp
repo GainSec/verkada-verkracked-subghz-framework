@@ -11,7 +11,7 @@ BH61_TEST("PHY profile exposes every recovered fixed parameter") {
   BH61_REQUIRE(bh61::dsp::phy::chip_rate == 640'000U);
   BH61_REQUIRE(bh61::dsp::phy::preamble_symbols == 10U);
   BH61_REQUIRE(bh61::dsp::phy::sync_symbols ==
-               (std::array<std::uint8_t, 3>{0x00, 0x0e, 0x05}));
+               (std::array<std::uint8_t, 3>{0x00, 0x07, 0x0a}));
   BH61_REQUIRE(bh61::dsp::phy::custom_oqpsk_taps ==
                (std::array<std::uint8_t, 8>{1, 1, 16, 48,
                                              80, 112, 127, 127}));
@@ -31,8 +31,8 @@ BH61_TEST("burst symbol stream has exact training and nibble order") {
   for (std::size_t index = 0; index < 11U; ++index) {
     BH61_REQUIRE(symbols[index] == 0U);
   }
-  BH61_REQUIRE(symbols[11] == 0x0e);
-  BH61_REQUIRE(symbols[12] == 0x05);
+  BH61_REQUIRE(symbols[11] == 0x07);
+  BH61_REQUIRE(symbols[12] == 0x0a);
   BH61_REQUIRE(symbols[13] == 0x0a);
   BH61_REQUIRE(symbols[14] == 0x01);
   BH61_REQUIRE(symbols[15] == 0x01);

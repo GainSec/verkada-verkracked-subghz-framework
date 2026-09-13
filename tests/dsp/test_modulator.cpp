@@ -17,7 +17,7 @@ namespace {
 constexpr std::array<std::uint8_t, 27> exact_type11_frame{
     0x1a, 0x41, 0xc8, 0x00, 0xff, 0x01, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00,
-    0x33, 0x8b, 0x00, 0x00, 0x01, 0x00, 0x00, 0x0e, 0x3a};
+    0x33, 0x8b, 0x00, 0x00, 0x01, 0x00, 0x00, 0x70, 0x5c};
 
 }  // namespace
 
@@ -67,6 +67,36 @@ BH61_TEST("analytic waveform generation is deterministic and orientation explici
   }
 }
 
+BH61_TEST("EFR32 custom OQPSK mode 2 reproduces the validated waveform") {
+  constexpr std::array<std::uint8_t, 27> live_accepted_frame{
+      0x1a, 0x41, 0xc8, 0xe4, 0xff, 0x01, 0x02, 0x00, 0x6a,
+      0xce, 0x40, 0xfe, 0xff, 0x9c, 0xc5, 0x70, 0x0b, 0x00,
+      0x92, 0xc1, 0x00, 0x00, 0x01, 0x00, 0x0a, 0x03, 0x0e};
+  const auto waveform = bh61::dsp::modulate_efr32_custom_oqpsk(
+      live_accepted_frame, 4'000'000U);
+
+  BH61_REQUIRE(waveform.model ==
+               bh61::dsp::WaveformModel::Efr32CustomOqpskMode2);
+  BH61_REQUIRE(waveform.hardware_exact);
+  BH61_REQUIRE(waveform.sample_rate == 4'000'000U);
+  BH61_REQUIRE(waveform.total_symbols == 67U);
+  BH61_REQUIRE(waveform.total_chips == 2'144U);
+  BH61_REQUIRE(waveform.samples.size() == 13'400U);
+
+  // Scipy's reference resample_poly output, before the live-test 0.5 scale.
+  constexpr std::array<std::complex<float>, 6> expected{
+      std::complex<float>{0.8910814524F, 0.0010871550F},
+      std::complex<float>{1.0360034704F, 0.0060045663F},
+      std::complex<float>{0.9796088338F, 0.0621035881F},
+      std::complex<float>{0.9915536046F, 0.1999460906F},
+      std::complex<float>{0.9069286585F, 0.4062127769F},
+      std::complex<float>{0.7889758945F, 0.6209074855F},
+  };
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    BH61_REQUIRE(std::abs(waveform.samples[index] - expected[index]) < 2e-5F);
+  }
+}
+
 BH61_TEST("canonical 4 MSPS fixture is immutable and numerically equivalent") {
   const auto waveform = bh61::dsp::modulate_oqpsk(
       exact_type11_frame, 4'000'000U,
@@ -97,7 +127,7 @@ BH61_TEST("canonical 4 MSPS fixture is immutable and numerically equivalent") {
   }
   BH61_REQUIRE(
       bh61::evidence::sha256_file(data_path) ==
-      "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa");
+      "898f2f9ed7b5225374a701f9b2942bc35f023f691964b26b708ff788a1f401bb");
 
   const auto metadata_path =
       fixture_directory / "type11-f27-normal-destination-4msps.json";

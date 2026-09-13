@@ -12,7 +12,7 @@ namespace {
 constexpr std::array<std::uint8_t, 27> exact_type11_frame{
     0x1a, 0x41, 0xc8, 0x00, 0xff, 0x01, 0x01, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b, 0x00,
-    0x33, 0x8b, 0x00, 0x00, 0x01, 0x00, 0x00, 0x0e, 0x3a};
+    0x33, 0x8b, 0x00, 0x00, 0x01, 0x00, 0x00, 0x70, 0x5c};
 
 }  // namespace
 
@@ -30,7 +30,7 @@ BH61_TEST("clean analytical IQ round-trips through acquisition and FCS") {
                                          exact_type11_frame.end()));
   BH61_REQUIRE(decoded.acquisition.start_sample == 0U);
   BH61_REQUIRE(decoded.acquisition.score > 0.99);
-  BH61_REQUIRE(decoded.radio_frame.received_fcs == 0x0e3a);
+  BH61_REQUIRE(decoded.radio_frame.received_fcs == 0x705c);
 }
 
 BH61_TEST("decoder requires a valid PHR and radio FCS after correlation") {

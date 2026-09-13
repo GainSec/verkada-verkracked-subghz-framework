@@ -20,6 +20,7 @@ class FakeHackrfTransport final : public radio::HackrfTransport {
   std::size_t stop_rx_calls{};
   std::size_t close_calls{};
   std::size_t transmit_calls{};
+  std::vector<std::int8_t> transmitted_bytes;
   std::string selected_serial;
 
   auto enumerate() -> std::vector<radio::HackrfIdentity> override {
@@ -54,7 +55,10 @@ class FakeHackrfTransport final : public radio::HackrfTransport {
 
   void close() override { ++close_calls; }
 
-  void transmit(std::span<const std::int8_t>) override { ++transmit_calls; }
+  void transmit(std::span<const std::int8_t> bytes) override {
+    ++transmit_calls;
+    transmitted_bytes.assign(bytes.begin(), bytes.end());
+  }
 
   void emit(std::span<const std::int8_t> bytes,
             std::uint64_t monotonic_time_ns) {

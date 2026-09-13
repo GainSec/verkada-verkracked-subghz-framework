@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -44,11 +45,30 @@ struct SampleBlock {
   SampleBlockStatus status{SampleBlockStatus::Data};
 };
 
+struct CoherentSamplePair {
+  SampleBlock channel_a;
+  SampleBlock channel_b;
+};
+
 class Device {
  public:
   virtual ~Device() = default;
   virtual auto capabilities() const -> DeviceCapabilities = 0;
   virtual auto receive(std::size_t maximum_samples) -> SampleBlock = 0;
+  virtual auto receive_pair(std::size_t maximum_samples)
+      -> CoherentSamplePair {
+    static_cast<void>(maximum_samples);
+    throw std::logic_error("device does not support coherent two-channel RX");
+  }
+  virtual void start_receive_stream() {
+    throw std::logic_error("device does not support continuous RX");
+  }
+  virtual void stop_receive_stream() {
+    throw std::logic_error("device does not support continuous RX");
+  }
+  virtual auto current_time_ns() const -> std::uint64_t {
+    throw std::logic_error("device does not expose its hardware clock");
+  }
   virtual void transmit(std::span<const std::complex<float>> samples,
                         std::uint64_t requested_time_ns) = 0;
 };

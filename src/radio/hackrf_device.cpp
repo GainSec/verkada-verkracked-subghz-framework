@@ -135,7 +135,11 @@ auto HackrfDevice::realized_configuration() const
 auto HackrfDevice::capabilities() const -> DeviceCapabilities {
   return DeviceCapabilities{
       true,
+#if defined(BH61_ENABLE_TX)
+      true,
+#else
       false,
+#endif
       false, false, false, SampleFormat::SignedInt8, 2'000'000U, 20'000'000U};
 }
 
@@ -182,9 +186,31 @@ auto HackrfDevice::receive(std::size_t maximum_samples) -> SampleBlock {
                      std::move(reason), SampleBlockStatus::Data};
 }
 
-void HackrfDevice::transmit(std::span<const std::complex<float>>,
-                            std::uint64_t) {
+void HackrfDevice::transmit(std::span<const std::complex<float>> samples,
+                            std::uint64_t requested_time_ns) {
+#if defined(BH61_ENABLE_TX)
+  if (!opened_) {
+    throw std::logic_error("HackRF device must be open before transmit");
+  }
+  {
+    std::lock_guard lock(mutex_);
+    if (receiving_) {
+      throw std::logic_error("HackRF cannot transmit while receive is active");
+    }
+  }
+  if (requested_time_ns != 0U) {
+    throw std::invalid_argument("HackRF does not support timed transmit");
+  }
+  if (samples.empty()) {
+    throw std::invalid_argument("HackRF transmit sample count must be nonzero");
+  }
+  const auto encoded = cf32_to_hackrf_iq(samples);
+  transport_.transmit(encoded.bytes);
+#else
+  static_cast<void>(samples);
+  static_cast<void>(requested_time_ns);
   throw std::logic_error("HackRF transmit is unavailable in this build");
+#endif
 }
 
 void HackrfDevice::handle_transfer(const HackrfRxTransfer& transfer) {

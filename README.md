@@ -8,8 +8,8 @@ Part 0, introducing this independent security reearch project can be found [HERE
 
 This project is an independent Sub-GHz interoperability and research framework
 for lawfully acquired BH-series hardware. It provides independently authored
-tooling for passive RF acquisition, protocol decoding, framing analysis, PHY
-modeling, and reproducible laboratory research.
+tooling for RF acquisition, controlled transmission, protocol decoding, framing
+analysis, PHY modeling, and reproducible owner-controlled laboratory research.
 
 The project is intended for owner controlled hardware, interoperability,
 repair, preservation, and security research conducted on systems users are
@@ -20,195 +20,210 @@ customer data, private RF captures, or unpublished embargoed vulnerability
 findings. Verkada is a trademark of its owner. This project is independent and
 is not affiliated with or endorsed by Verkada.
 
-## What it does
+## What can I do with this framework and my alarm hub?
 
-The framework provides a C++20 library and `bh61-radio` command-line tool for:
+| Feature | What you can do | Hardware or input |
+|---|---|---|
+| Frame inspection | Parse recovered radio framing, CRC domains, VMAC, VCMP, messages, counters, and payloads | Frame bytes in hexadecimal |
+| Frame construction | Build complete join, scan-complete, and protected protocol frames from fields | Synthetic field values, key, and IV |
+| Waveform generation | Convert complete frames into the recovered DSSS and half-sine OQPSK waveform | Frame bytes; no radio required |
+| IQ decoding | Acquire, synchronize, demodulate, and decode BH61 bursts | Raw `cf32_le`, SigMF, B210, HackRF, or RTL-SDR input |
+| Capture evidence | Save normalized SigMF, JSONL, reproduction commands, timestamps, and SHA-256 manifests | Live receiver or operator-supplied IQ |
+| Normal RF transmission | Send generated or supplied valid BH61 frames through a normal antenna port | B210 or HackRF with TX enabled |
+| Ordered exchanges | Send up to 100 valid frames in one timed sequence with controlled intervals | B210, HackRF, or file backend |
+| Synthetic sensor identity | Create and persist a fresh P-256 identity for a door, motion, panic, glass-break, water, or relay sensor | Local session directory |
+| Synthetic sensor pairing | Perform the normal join exchange, validate both coordinator responses, and derive the session key | B210 plus an owned BH61 |
+| Intended sensor activity | Send tamper, water, motion, contact, glass-break, heartbeat, panic, relay-input, and reverse-contact events and validate the normal acknowledgement | Joined synthetic sensor over B210 |
+| Coordinator reads | Request echo, image state, range status, configuration, statistics, peer, and memory-pool data | Joined synthetic sensor over B210 |
+| Sensor-state simulation | Model enrollment, contact, motion, tamper, battery, supervision, and retransmission state as correlated events | Scenario text file; no radio required |
+| Wireshark export | Write DLT_USER0 PCAP and dissect PHR, VMAC, VCMP, payload, and FCS fields | Valid BH61 frame |
+| RF and cloud correlation | Produce `bh61.lab.event/v1` records that import into the companion cloud emulator | Any capture or transmit workflow |
+| Coherent measurement | Capture two synchronized B210 channels and calculate calibrated phase and amplitude observations | B210 with two receive channels |
 
-- parsing and rebuilding recovered radio framing, CRC, VMAC, VCMP, message,
-  and session structures;
-- generating frames and deterministic waveforms entirely offline;
-- analytical DSSS and half-sine OQPSK modulation/demodulation;
-- finite-hypothesis acquisition, synchronization, and impaired-signal tests;
-- decoding raw `cf32_le` IQ files and SigMF data/metadata pairs;
-- normalizing passive captures into SigMF, JSONL, reproduction commands, and
-  SHA-256 manifests;
-- enumerating an optional native HackRF backend and exercising its RX library;
-  and
-- running an offline EFR32 parser/peer-state behavioral model against a
-  deterministic synthetic corpus.
+Supported radio backends:
 
-The public command line is receive/offline focused. It exposes no RF transmit
-command. Frame construction and the file-device transmit interface exist for
-offline tests and analytical modeling; they are not validated over-the-air
-injection or device-control capabilities.
+| Backend | Receive | Transmit | Notes |
+|---|---:|---:|---|
+| Ettus B210/UHD | Yes | Yes | Timed TX and coherent two-channel RX |
+| HackRF/libhackrf | Yes | Yes | One channel; immediate TX only |
+| RTL-SDR/librtlsdr | Yes | No | Receive-only by hardware design |
+| File | Yes | Yes | Deterministic tests without RF hardware |
 
-## Supported devices and required hardware
+Transmission always requires `--enable-tx`, or `--dry-run` for validation
+without RF. The `efr32-custom-oqpsk-mode2` waveform was accepted repeatedly by
+a live BH61 on 2026-09-07. A successful host-side send still does not by itself
+prove target acceptance; use target counters or a second receiver.
 
-The primary target is the **Verkada BH61 Wireless Alarm Hub**, a PoE-powered
-Classic Alarms hub that communicates with wireless alarm peripherals over a
-regional Sub-GHz link. See Verkada's [BH61 installation guide][bh61-guide],
-[wireless-device setup guide][wireless-setup], and [wireless intrusion product
-overview][wireless-overview] for the manufacturer's hardware documentation.
-This project models the hub-side framing, protocol, DSP, and EFR32 behavior; it
-does not replace the manufacturer's installation or life-safety guidance.
-
-The associated wireless-device family documented for the BH61 includes the
-[BR31 door sensor][br31-guide], [BR32 motion sensor][br32-guide], [BR33 panic
-button][br33-guide], [BR34 glass-break sensor][br34-guide], [BR35 water-leak
-sensor][br35-guide], and [BX21 wireless relay][bx21-guide]. These links identify
-the devices whose traffic may be encountered in an authorized BH61 lab. They
-do not mean every peripheral has been individually tested with this project.
-BH31 remains an experimental compatibility target without a BH31-specific
-public capture or physical validation.
-
-For offline work, only a computer with CMake 3.24+, a C++20 compiler, and the
-checked-in synthetic fixtures is required. Raw `cf32_le` IQ and SigMF files can
-be inspected without any radio attached. Passive live-RF research additionally
-requires:
-
-- a **HackRF One or HackRF Pro** with libhackrf development files installed;
-- a receive antenna suitable for the hardware's regional band (the vendor
-  documents 915 MHz for the US/Canada and 868 MHz for the UK/EU);
-- a data-capable USB connection and a computer able to sustain IQ capture; and
-- lawfully owned BH61 hardware and peripherals when performing physical
-  validation rather than fixture-only analysis.
-
-The native HackRF RX transport and device enumeration are implemented, but the
-`capture` command is not yet wired directly to an attached HackRF. The current
-end-to-end CLI workflow analyzes operator-supplied raw `cf32_le` or SigMF input.
-No transmit-capable backend or RF transmit command is included.
-
-[bh61-guide]: https://docs.verkada.com/docs/wireless-alarm-hub-install-guide.pdf
-[wireless-setup]: https://help.verkada.com/classic-alarms/installation/alarm-setup-and-install-best-practices/set-up-your-wireless-alarm-devices
-[wireless-overview]: https://docs.verkada.com/docs/wireless-intrusion-overview.pdf
-[br31-guide]: https://docs.verkada.com/docs/br31-quick-start-guide.pdf
-[br32-guide]: https://docs.verkada.com/docs/br32-quick-start-guide.pdf
-[br33-guide]: https://docs.verkada.com/docs/br33-quick-start-guide.pdf
-[br34-guide]: https://docs.verkada.com/docs/br34-quick-start-guide.pdf
-[br35-guide]: https://docs.verkada.com/docs/br35-quick-start-guide.pdf
-[bx21-guide]: https://docs.verkada.com/docs/wireless-relay-bx21-datasheet.pdf
-
-## Current limits
-
-- BH61 is the primary modeled family. The public repository does not claim
-  physical RF validation for the checked-in waveform or fixtures.
-- BH31 behavior is expected but unverified; BH61 evidence must not be treated
-  as BH31 confirmation.
-- The waveform fixture is independently generated and
-  `hardware_exact=false`. It is analytically modeled, not demonstrated as
-  bit-for-bit or waveform-exact against physical BH hardware.
-- Native HackRF enumeration, configuration, conversion, queuing, and RX
-  transport are implemented. Direct HackRF-to-`capture` CLI selection is not
-  wired yet; `capture --input` currently operates on files.
-- No UHD/USRP or RTL-SDR backend is implemented.
-- Unknown protocol fields remain opaque. Implementation does not prove a
-  physical device accepts or emits a modeled structure.
-
-See [hardware support](docs/HARDWARE-SUPPORT.md) and
-[claim provenance](docs/PROVENANCE.md).
-
-## Requirements
-
-- CMake 3.24 or newer
-- a C++20 compiler
-- Python 3 for the EFR32 research tests and fixture generator
-- optional libhackrf development headers/library for the native RX backend
-
-No network service or vendor account is required. The tools contain no vendor
-production endpoint and make no production API request.
-
-## Build and test
-
-Portable build without radio hardware:
+## Build and verify
 
 ```sh
-cmake -S . -B build -DBH61_ENABLE_HARDWARE=OFF
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-python3 -m unittest discover -s tests/research -p 'test_*.py'
-```
-
-Optional HackRF RX library build:
-
-```sh
-cmake -S . -B build-hackrf \
+sudo apt install build-essential cmake pkg-config libhackrf-dev hackrf libuhd-dev uhd-host librtlsdr-dev rtl-sdr
+cmake -S . -B build-native \
   -DBH61_ENABLE_HARDWARE=ON \
   -DBH61_ENABLE_HACKRF=ON \
-  -DBH61_REQUIRE_HACKRF=ON
-cmake --build build-hackrf --parallel
-ctest --test-dir build-hackrf --output-on-failure
-./build-hackrf/bh61-radio devices --jsonl
+  -DBH61_REQUIRE_HACKRF=ON \
+  -DBH61_ENABLE_UHD=ON \
+  -DBH61_ENABLE_RTLSDR=ON \
+  -DBH61_ENABLE_TX=ON
+cmake --build build-native -j4
+ctest --test-dir build-native --output-on-failure
+./build-native/bh61-radio devices --jsonl
 ```
 
-The last command enumerates devices. It does not start reception or transmit.
-
-## Work with safe sample data
-
-Inspect the reconstructed type-11 frame:
+## Main commands
 
 ```sh
-frame=$(sed -n '/^[0-9a-f]/p' fixtures/protocol/type11-f27-normal-destination.hex)
-./build/bh61-radio inspect --hex "$frame"
+# Inspect and generate a known recovered frame.
+./build-native/bh61-radio inspect --hex 1a41c800ff01010000000000000000000b00338b0000010000705c
+./build-native/bh61-radio waveform \
+  --frame-hex 1a41c800ff01010000000000000000000b00338b0000010000705c \
+  --output /tmp/bh61.cf32 --sample-rate 4000000
+
+# Build complete type-7, type-11, and protected frames from fields.
+join=$(./build-native/bh61-radio join-frame \
+  --source-eui 1112131415161718 --destination 1 --pan 511 \
+  --sequence 1 --serial-hex 58)
+scan=$(./build-native/bh61-radio scan-complete-frame \
+  --source-eui 2122232425262728 --destination 1 --pan 511 \
+  --sequence 2 --channel 0 --regulatory-code 1 --scan-sequence 10)
+secure=$(./build-native/bh61-radio secure-frame \
+  --source-eui 3132333435363738 --destination 1 --pan 511 \
+  --sequence 3 --type 1 --flags 1 --counter 4660 --payload-hex 00 \
+  --key-hex 30313233343536373839414243444546 \
+  --iv-hex 000102030405060708090a0b0c0d0e0f)
+
+# Send an ordered frame sequence through one device open and one RF burst.
+./build-native/bh61-radio transmit --backend b210 --serial B210_SERIAL \
+  --frame-hex "$join,$secure" --output captures/private-lab/sequence-001 \
+  --stem sequence-001 --sample-rate 4000000 \
+  --center-frequency 915000000 --tx-gain 0 --interval-ms 10 --enable-tx
+
+# Transmit through a HackRF at the normal antenna port.
+./build-native/bh61-radio transmit --backend hackrf --serial HACKRF_SERIAL \
+  --frame-hex 1a41c800ff01010000000000000000000b00338b0000010000705c \
+  --output captures/private-lab/tx-001 --stem tx-001 --sample-rate 4000000 \
+  --center-frequency 915350000 --tx-gain 0 \
+  --utc 2026-09-06T18:00:00Z --enable-tx
+
+# Schedule a B210 transmission in UHD device time.
+./build-native/bh61-radio transmit --backend uhd --serial B210_SERIAL \
+  --input /tmp/bh61.cf32 --output captures/private-lab/timed-001 --stem timed-001 \
+  --sample-rate 4000000 --center-frequency 915350000 --tx-gain 0 \
+  --at-ns 5000000000 --enable-tx
+
+# Capture two coherent B210 channels and calculate calibrated phase/amplitude.
+./build-native/bh61-radio df-capture --backend uhd --serial B210_SERIAL \
+  --output captures/private-lab/df-001 --stem df-001 --sample-count 4000000 \
+  --sample-rate 4000000 --center-frequency 915350000 \
+  --antenna two-element-linear --calibration-phase-rad 0.0 \
+  --utc 2026-09-06T18:00:00Z
 ```
 
-Generate and decode a temporary analytical waveform:
+Start with zero TX gain and increase it only when the measured laboratory link
+requires it. The CLI restricts this recovered profile to 902–928 MHz, one
+waveform to 10 seconds, one command to 60 seconds of aggregate airtime, and
+HackRF TX gain to 0–47 dB. A comma-separated `--frame-hex` sequence is limited to 100 frames and
+is emitted as one waveform with the requested silence interval between frames.
+These software bounds do not replace local RF rules or safe lab setup.
+
+## Stateful synthetic sensors
+
+The B210 full-duplex path can create an owner-controlled synthetic identity,
+perform the normal join exchange, send one of the recovered intended event
+semantics, and issue a fixed allowlist of read-only coordinator requests.
+Start with a dry run and the isolation preflight. The private P-256 scalar is
+stored only as `sensor-private.key` with owner-only permissions. Do not copy it
+into logs, support bundles, evidence directories, or Git.
 
 ```sh
-./build/bh61-radio waveform \
-  --frame-hex "$frame" \
-  --output /tmp/bh-series-analytical.cf32 \
-  --sample-rate 4000000
+./build-native/bh61-radio sensor-create \
+  --session sessions/synthetic-door-01 \
+  --serial SYN-DOOR-0001 --model door-contact
 
-./build/bh61-radio decode \
-  --input /tmp/bh-series-analytical.cf32 \
-  --sample-rate 4000000 \
-  --jsonl
+tools/bh61_isolation_preflight.sh \
+  --output preflight.json --hub-ip HUB_LAB_IP --hub-mac HUB_LAB_MAC \
+  --dns-ip LAB_DNS_IP --domains-file lab-domains.txt \
+  --emulator-health-url http://LAB_EMULATOR_HOST:PORT/healthz \
+  --router-host LAB_ROUTER --radio-host local \
+  --b210-serial B210_SERIAL --fpga usrp_b210_fpga.bin \
+  --fpga-sha256 FPGA_SHA256 --uart-oracle uart-health.txt
+
+./build-native/bh61-radio sensor-join \
+  --session sessions/synthetic-door-01 --output runs/join-dry \
+  --preflight preflight.json --backend b210 --serial B210_SERIAL \
+  --fpga usrp_b210_fpga.bin --sample-rate 4000000 \
+  --center-frequency 915350000 --rx-timeout-ms 2000 --dry-run
+
+# Replace --dry-run with --enable-tx only after every preflight gate passes.
+./build-native/bh61-radio sensor-event \
+  --session sessions/synthetic-door-01 --output runs/contact-opened \
+  --preflight preflight.json --backend b210 --serial B210_SERIAL \
+  --fpga usrp_b210_fpga.bin --sample-rate 4000000 \
+  --center-frequency 915350000 --rx-timeout-ms 2000 --tx-gain 0 \
+  --event contact-opened --event-id 1 --enable-tx
+
+./build-native/bh61-radio sensor-rpc-read \
+  --session sessions/synthetic-door-01 --output runs/image-state \
+  --preflight preflight.json --backend b210 --serial B210_SERIAL \
+  --fpga usrp_b210_fpga.bin --sample-rate 4000000 \
+  --center-frequency 915350000 --rx-timeout-ms 2000 --tx-gain 0 \
+  --rpc image-state --enable-tx
 ```
 
-Normalize a user-supplied raw IQ file into a SigMF pair and hash manifest:
+See [Stateful synthetic sensors](docs/STATEFUL-SENSORS.md) for all models,
+events, read operations, lifecycle commands, and acceptance evidence.
+
+## Evidence and cloud correlation
+
+TX creates a JSON record, correlated `bh61.lab.event/v1` JSONL, the exact CF32
+waveform, and a SHA-256 manifest. `df-capture` creates both channel files, a
+calibrated observation, and a manifest. Import event streams into the cloud
+emulator with:
 
 ```sh
-mkdir -p captures/private-lab
-./build/bh61-radio capture \
-  --input /path/outside/repository/owned-capture.cf32 \
-  --output captures/private-lab \
-  --stem owned-lab-rx \
-  --sample-rate 4000000 \
-  --center-frequency 915350000
+bh61-cloud-emulator lab-event --token "$ADMIN_TOKEN" ingest captures/private-lab/tx-001/tx-001.events.jsonl
 ```
 
-The frequency above is a model/example value, not a universal live channel.
-Determine lawful settings and the actual regional/device configuration in your
-own lab. Keep generated captures outside Git; `captures/` is ignored.
+The full operator sequence is in
+[Integrated RF and cloud lab runbook](docs/INTEGRATED-RF-CLOUD-LAB.md).
 
-To decode a SigMF pair, pass its metadata path:
+## Wireshark
+
+Export a decoded frame and install the Lua dissector:
 
 ```sh
-./build/bh61-radio decode \
-  --input captures/private-lab/owned-lab-rx.sigmf-meta \
-  --jsonl
+./build-native/bh61-radio pcap \
+  --hex 1a41c800ff01010000000000000000000b00338b0000010000705c \
+  --output bh61.pcap
+mkdir -p "$HOME/.local/lib/wireshark/plugins"
+cp tools/wireshark/bh61.lua "$HOME/.local/lib/wireshark/plugins/bh61.lua"
+wireshark bh61.pcap
 ```
 
-## Capture safety and contributions
+The dissector handles the framework's DLT_USER0 records and exposes PHR,
+VMAC, VCMP, payload, received FCS, and computed FCS validity.
 
-Only acquire signals and hardware data you are authorized to study. Before
-sharing any derived result, remove device-specific EUIs, PAN data, RF/session
-keys, serials, receiver serials, timestamps, location metadata, and unrelated
-traffic. Do not submit raw private captures. Prefer reproducible synthetic
-vectors generated by this project.
+## Public release boundary
 
-Every fixture must meet [the fixture policy](docs/FIXTURES.md) and the
-[contribution rules](CONTRIBUTING.md).
+This repository contains no vendor firmware, credentials, private captures,
+live device identifiers, customer data, persistent-access mechanism, turnkey
+root-execution chain, shell execution, fuzzing, mutation, replay, counter
+manipulation, malformed acknowledgement modes, or embargoed vulnerability
+report. Operators supply their own identifiers and captures at runtime. The
+file backend supports deterministic use without hardware.
 
-## Architecture and evidence discipline
+## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md)
+- [Hardware and backend support](docs/HARDWARE-SUPPORT.md)
+- [Stateful synthetic sensors](docs/STATEFUL-SENSORS.md)
+- [Integrated RF and cloud laboratory](docs/INTEGRATED-RF-CLOUD-LAB.md)
 - [Provenance and claim status](docs/PROVENANCE.md)
-- [Fixture policy and manifest](docs/FIXTURES.md)
+- [Fixture policy](docs/FIXTURES.md)
 - [Research methodology](docs/RESEARCH-METHODOLOGY.md)
 - [EFR32 model](research/efr32/README.md)
 - [i.MX7/EFR32 boundary](research/imx7/README.md)
 
-## Author 
+## Author
 
 [Jon "GainSec" Gaines](https://gainsec.com)

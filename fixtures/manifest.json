@@ -19,7 +19,7 @@
       "exact_observed": false,
       "physically_validated": false,
       "analytical_only": true,
-      "sha256": "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa"
+      "sha256": "898f2f9ed7b5225374a701f9b2942bc35f023f691964b26b708ff788a1f401bb"
     },
     {
       "path": "fixtures/phy/type11-f27-normal-destination-4msps.json",
@@ -29,17 +29,17 @@
       "exact_observed": false,
       "physically_validated": false,
       "analytical_only": true,
-      "sha256": "4ae02c58c7b9edbf20aaf2b90aed05e2892cc944d3364d80b8e7997a81a5abec"
+      "sha256": "372636e522806d10cb90e1316649eda9b8637c41c9b1d2f2791cbb1731dca3ca"
     },
     {
-      "path": "fixtures/protocol/reset-req.hex",
-      "classification": "independently-reconstructed",
-      "description": "Offline CRC input/checksum vector with no key or ciphertext",
+      "path": "fixtures/session/synthetic-join-public.json",
+      "classification": "synthetic",
+      "description": "Deterministic public identity, join response, event, and digest vector for portable stateful tests",
       "identifiers_sanitized": true,
       "exact_observed": false,
       "physically_validated": false,
       "analytical_only": true,
-      "sha256": "f28b7d0fa3245676c0ad28095ff37b5858573246c7bf4346bbeeb6acb247f69c"
+      "sha256": "8f68742ed48c7ea033108f22ab0e483cf6c0243d00bf5402d8df2bb6b535542a"
     },
     {
       "path": "fixtures/protocol/type11-f27-normal-destination.hex",
@@ -49,17 +49,17 @@
       "exact_observed": false,
       "physically_validated": false,
       "analytical_only": true,
-      "sha256": "c22a37cd1eb6497894a9c88adcf8c90eb36d82e63a67d0f4beb4d8c9a1a249be"
+      "sha256": "716c272759ecac0f7b765d089fd1cf34c7e143ac9268898df0346d5ebcb2dcc8"
     },
     {
       "path": "research/efr32/corpus/manifest.json",
       "classification": "synthetic",
-      "description": "Manifest covering every generated EFR32 parser seed and mutation fixture",
+      "description": "Manifest covering the generated valid-protocol EFR32 parser seeds",
       "identifiers_sanitized": true,
       "exact_observed": false,
       "physically_validated": false,
       "analytical_only": true,
-      "sha256": "0f3ec16a505177a6841c84cf048456057a5217cb6a00f9ab1f916a0a510fa64b"
+      "sha256": "ff9a3ae42bde1dfe3839759a92b55c1272686799f5e029214522100b38c49f07"
     }
   ]
 }

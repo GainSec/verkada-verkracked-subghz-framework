@@ -42,6 +42,20 @@ BH61_TEST("VMAC parser preserves and re-encodes opaque payload bytes") {
                                                     exact_type11_psdu.end()));
 }
 
+BH61_TEST("VMAC parser preserves the live hub short destination zero") {
+  constexpr std::array<std::uint8_t, 19> live_psdu{
+      0x41, 0xc8, 0xe2, 0xff, 0x01, 0x00, 0x00, 0x6a, 0xce, 0x40,
+      0xfe, 0xff, 0x9c, 0xc5, 0x70, 0x00, 0x00, 0x00, 0x00};
+  const auto parsed = bh61::core::parse_vmac(live_psdu);
+  BH61_REQUIRE(std::holds_alternative<bh61::core::VmacFrame>(parsed));
+  const auto& frame = std::get<bh61::core::VmacFrame>(parsed);
+  BH61_REQUIRE(std::get<std::uint16_t>(frame.destination) == 0U);
+  BH61_REQUIRE(frame.payload ==
+               (std::vector<std::uint8_t>{0x00, 0x00, 0x00, 0x00}));
+  BH61_REQUIRE(bh61::core::encode_vmac(frame) ==
+               std::vector<std::uint8_t>(live_psdu.begin(), live_psdu.end()));
+}
+
 BH61_TEST("VMAC parser rejects truncation and unsupported address forms") {
   const std::array<std::uint8_t, 7> truncated{0x41, 0xc8, 0x00, 0xff,
                                                0x01, 0x01, 0x00};

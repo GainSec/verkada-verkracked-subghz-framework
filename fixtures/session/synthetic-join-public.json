@@ -1,0 +1,20 @@
+{
+  "schema": "bh61.synthetic-session-public/v1",
+  "serial": "SYN-OFFLINE-0001",
+  "physical_id_hex": "0102030405060708",
+  "sensor_eui64_hex": "1112131415161718",
+  "nonce_hex": "2122232425262728",
+  "hub_eui64_hex": "a1a2a3a4a5a6a7a8",
+  "sensor_public_key_hex": "585f3cb81f1eb0905d61c2092e1f925b894cbeaaea16f66bffa656d010c5a942387ceb8255d4f577cdd94e72efe1297085068201266399ae5849da00e7aeff7a",
+  "hub_public_key_hex": "373117877f31fda15bb47ff69282a158b5fd9fbaafc9383ee86c45918772bd0e4def29c76de20762ddcfe458e86a8f78c7de44c19059616ff3b49918e84efddb",
+  "join_response_body_hex": "05373117877f31fda15bb47ff69282a158b5fd9fbaafc9383ee86c45918772bd0e4def29c76de20762ddcfe458e86a8f78c7de44c19059616ff3b49918e84efddb1234567800048455fcc2",
+  "join_signature_body_hex": "0003300100",
+  "event_iv_hex": "000102030405060708090a0b0c0d0e0f",
+  "pan": 511,
+  "hub_counter": 22136,
+  "sensor_counter": 4660,
+  "event_id": 1,
+  "key_fingerprint_sha256": "15c890e11e0c63bbdd46d03297010716a66cdb874a9e9b8ce9074967cfca87f7",
+  "join_frame_sha256": "986f85bf5426bf918b3f98f9acf6a039e7aebafe28e065c0b05ca00d1644807a",
+  "heartbeat_frame_sha256": "272ab92d2f419f3c10d22d6013e8d4d3de68166883ee55fb2d8ca5c49588aed3"
+}

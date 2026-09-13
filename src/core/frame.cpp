@@ -65,4 +65,8 @@ auto encode_radio_frame(const RadioFrame& frame) -> std::vector<std::uint8_t> {
   return encoded;
 }
 
+auto encode_mac_ack_frame(std::uint8_t sequence) -> std::vector<std::uint8_t> {
+  return encode_radio_frame(RadioFrame{0U, {0x02U, 0x00U, sequence}, 0U, 0U});
+}
+
 }  // namespace bh61::core

@@ -7,7 +7,9 @@ evidence output separate so each boundary can be tested without radio hardware.
 RF/IQ input
   |-- cf32_le file
   |-- SigMF metadata/data pair
-  `-- optional HackRF RX library
+  |-- HackRF RX/TX
+  |-- UHD/B210 RX/TX and coherent dual RX
+  `-- RTL-SDR RX
           |
           v
 radio Device abstraction / FileDevice / HackrfDevice
@@ -22,10 +24,13 @@ analytical DSSS / half-sine OQPSK demodulation
 radio framing and CCITT-derived FCS
           |
           v
-VMAC -> VCMP -> typed messages / session model
+VMAC -> VCMP -> typed messages / persistent sensor session
           |
           v
-normalized JSONL and SigMF evidence writer
+normal join / intended event / read-only coordinator request runner
+          |
+          v
+normalized JSONL, SigMF, PCAP, and operation evidence writer
 ```
 
 ## Components
@@ -35,10 +40,12 @@ normalized JSONL and SigMF evidence writer
 - `include/bh61/dsp`, `src/dsp`: profiles, DSSS mapping, analytical modulator,
   acquisition, and demodulation.
 - `include/bh61/radio`, `src/radio`: common device abstraction, deterministic
-  file backend, HackRF types, bounded RX queue, and optional libhackrf adapter.
+  file backend, HackRF, UHD/B210, and RTL-SDR adapters.
 - `include/bh61/evidence`, `src/evidence`: atomic passive importer and writer
   for SigMF, JSONL, discontinuity records, and SHA-256 manifests.
-- `src/apps`: offline/receive-oriented CLI operations.
+- `src/apps`: decode, capture, generation, guarded normal TX, synthetic sensor
+  lifecycle, stateful full-duplex exchanges, simulation, PCAP, coverage, and
+  coherent-measurement CLI operations.
 - `research/efr32`: bounded offline behavioral model and generated synthetic
   parser corpus.
 
@@ -50,8 +57,14 @@ without returning partial normalized rows. Hardware RX reports timeout,
 end-of-stream, cancellation, removal, and transport errors separately; queue
 overflow is recorded as a discontinuity.
 
-Offline encoders and modulation are deterministic test tools. The native
-HackRF transport has no transmit implementation, and the CLI exposes no
-transmit command. Native HackRF RX is not yet selected by `capture`; the current
-CLI capture path uses a file device unless embedded by another owner-controlled
-application.
+Offline encoders and modulation are deterministic test tools. Native transmit
+paths are compiled only when enabled and require a second runtime
+acknowledgement. Each operation applies bounded duration, frequency, gain,
+and frequency policies and records the exact waveform hash. Stateful sensor
+commands additionally require an exact B210 identity, an FPGA image, an
+isolation-preflight result, a bounded receive timeout, and exactly one of
+`--dry-run` or `--enable-tx`.
+
+The sensor runner accepts only normal protocol behavior. It has no public
+counter-resynchronization diagnostic, malformed acknowledgement mode,
+arbitrary RPC constructor, replay engine, mutation engine, or fuzzing surface.

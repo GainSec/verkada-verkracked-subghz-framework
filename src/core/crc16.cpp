@@ -35,7 +35,12 @@ auto vcmp_crc16(std::span<const std::uint8_t> bytes) noexcept -> std::uint16_t {
 }
 
 auto radio_fcs16(std::span<const std::uint8_t> bytes) noexcept -> std::uint16_t {
-  return ccitt_msb(bytes, true);
+  const auto remainder = ccitt_msb(bytes, true);
+  return static_cast<std::uint16_t>(
+      static_cast<std::uint16_t>(reverse_bits(
+          static_cast<std::uint8_t>(remainder >> 8U)))
+          << 8U |
+      reverse_bits(static_cast<std::uint8_t>(remainder)));
 }
 
 }  // namespace bh61::core

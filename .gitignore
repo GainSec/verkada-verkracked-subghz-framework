@@ -79,3 +79,4 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
+.worktrees/

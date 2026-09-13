@@ -1,3 +1,0 @@
-# ResetReq inner VCMP CRC input and expected checksum.
-# input: type=01 flags=01 reserved=0000 plaintext=000014000000
-01010000000014000000 5530

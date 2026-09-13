@@ -17,12 +17,20 @@ BH61_TEST("VCMP CRC matches the independently recovered ResetReq vector") {
   BH61_REQUIRE(bh61::core::vcmp_crc16(input) == 0x5530);
 }
 
-BH61_TEST("radio FCS matches the exact 24-byte type-11 PSDU") {
+BH61_TEST("radio FCS uses the on-air reflected remainder byte order") {
   constexpr std::array<std::uint8_t, 24> psdu{
       0x41, 0xc8, 0x00, 0xff, 0x01, 0x01, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0b,
       0x00, 0x33, 0x8b, 0x00, 0x00, 0x01, 0x00, 0x00};
-  BH61_REQUIRE(bh61::core::radio_fcs16(psdu) == 0x0e3a);
+  BH61_REQUIRE(bh61::core::radio_fcs16(psdu) == 0x705c);
+}
+
+BH61_TEST("radio FCS matches the live BH61 scan-info frame") {
+  constexpr std::array<std::uint8_t, 24> psdu{
+      0x41, 0xc8, 0xe4, 0xff, 0x01, 0x02, 0x00, 0x6a,
+      0xce, 0x40, 0xfe, 0xff, 0x9c, 0xc5, 0x70, 0x0b,
+      0x00, 0x92, 0xc1, 0x00, 0x00, 0x01, 0x00, 0x0a};
+  BH61_REQUIRE(bh61::core::radio_fcs16(psdu) == 0x030e);
 }
 
 BH61_TEST("16-bit byte loads and stores have explicit endianness") {

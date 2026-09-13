@@ -108,6 +108,27 @@ auto encode_rpc(const RpcMessage& rpc) -> std::vector<std::uint8_t> {
   return encoded;
 }
 
+auto parse_ack_response(std::span<const std::uint8_t> body)
+    -> AckResponseResult {
+  if (body.size() < 4U) {
+    return ParseError{ParseErrorCode::Truncated, "AckRsp", body.size(),
+                      "four-byte AckRsp status is truncated"};
+  }
+  const std::array<std::uint8_t, 4> status{
+      body[0], body[1], body[2], body[3]};
+  return AckResponse{
+      load_be32(status),
+      std::vector<std::uint8_t>(body.begin() + 4, body.end())};
+}
+
+auto encode_ack_response(const AckResponse& response)
+    -> std::vector<std::uint8_t> {
+  const auto status = store_be32(response.status);
+  std::vector<std::uint8_t> encoded(status.begin(), status.end());
+  encoded.insert(encoded.end(), response.message.begin(), response.message.end());
+  return encoded;
+}
+
 namespace {
 
 auto parse_fixed_join(std::span<const std::uint8_t> body) -> JoinResult {
@@ -245,6 +266,210 @@ auto encode_join_request(const JoinRequest& join) -> std::vector<std::uint8_t> {
     return encoded;
   }
   throw std::invalid_argument("supported join versions are 4, 5, and 6");
+}
+
+auto parse_join_response(std::span<const std::uint8_t> body)
+    -> JoinResponseResult {
+  JoinResponse response{};
+  if (body.size() == 85U && body[0] == 3U) {
+    response.format = 3;
+    std::copy_n(body.begin() + 1, response.local_public_xy.size(),
+                response.local_public_xy.begin());
+    std::copy_n(body.begin() + 65, response.reserved.size(),
+                response.reserved.begin());
+    response.local_counter = load_be16(
+        std::array<std::uint8_t, 2>{body[81], body[82]});
+    response.remote_counter = load_be16(
+        std::array<std::uint8_t, 2>{body[83], body[84]});
+    return response;
+  }
+  if (body.size() == 73U && body[0] == 4U) {
+    response.format = 4;
+    std::copy_n(body.begin() + 1, response.local_public_xy.size(),
+                response.local_public_xy.begin());
+    response.local_counter = load_be16(
+        std::array<std::uint8_t, 2>{body[65], body[66]});
+    response.remote_counter = load_be16(
+        std::array<std::uint8_t, 2>{body[67], body[68]});
+    std::copy_n(body.begin() + 69, response.remote_public_hash.size(),
+                response.remote_public_hash.begin());
+    return response;
+  }
+  if (body.size() == 75U && body[0] == 5U && body[69] == 0U &&
+      body[70] == response.remote_public_hash.size()) {
+    response.format = 5;
+    std::copy_n(body.begin() + 1, response.local_public_xy.size(),
+                response.local_public_xy.begin());
+    response.local_counter = load_be16(
+        std::array<std::uint8_t, 2>{body[65], body[66]});
+    response.remote_counter = load_be16(
+        std::array<std::uint8_t, 2>{body[67], body[68]});
+    std::copy_n(body.begin() + 71, response.remote_public_hash.size(),
+                response.remote_public_hash.begin());
+    return response;
+  }
+  return ParseError{ParseErrorCode::InvalidField, "join-response", body.size(),
+                    "join response must be exact format 3, 4, or 5 layout"};
+}
+
+auto encode_join_response(const JoinResponse& response)
+    -> std::vector<std::uint8_t> {
+  const auto local = store_be16(response.local_counter);
+  const auto remote = store_be16(response.remote_counter);
+  std::vector<std::uint8_t> encoded;
+  if (response.format == 3U) {
+    encoded.reserve(85);
+    encoded.push_back(3);
+    encoded.insert(encoded.end(), response.local_public_xy.begin(),
+                   response.local_public_xy.end());
+    encoded.insert(encoded.end(), response.reserved.begin(),
+                   response.reserved.end());
+  } else if (response.format == 4U || response.format == 5U) {
+    encoded.reserve(response.format == 4U ? 73U : 75U);
+    encoded.push_back(response.format);
+    encoded.insert(encoded.end(), response.local_public_xy.begin(),
+                   response.local_public_xy.end());
+  } else {
+    throw std::invalid_argument("join response format must be 3, 4, or 5");
+  }
+  encoded.insert(encoded.end(), local.begin(), local.end());
+  encoded.insert(encoded.end(), remote.begin(), remote.end());
+  if (response.format == 4U) {
+    encoded.insert(encoded.end(), response.remote_public_hash.begin(),
+                   response.remote_public_hash.end());
+  } else if (response.format == 5U) {
+    encoded.push_back(0U);
+    encoded.push_back(
+        static_cast<std::uint8_t>(response.remote_public_hash.size()));
+    encoded.insert(encoded.end(), response.remote_public_hash.begin(),
+                   response.remote_public_hash.end());
+  }
+  return encoded;
+}
+
+auto parse_join_signature(std::span<const std::uint8_t> body)
+    -> JoinSignatureResult {
+  if (body.size() < 3U) {
+    return ParseError{ParseErrorCode::Truncated, "join-signature", body.size(),
+                      "join signature prefix or value is truncated"};
+  }
+  const auto length = static_cast<std::size_t>(body[1]);
+  if (length == 0U || body.size() != length + 2U) {
+    return ParseError{ParseErrorCode::InvalidField, "join-signature", 0,
+                      "join signature length is invalid"};
+  }
+  return JoinSignature{std::vector<std::uint8_t>(body.begin() + 2, body.end())};
+}
+
+auto encode_join_signature(const JoinSignature& signature)
+    -> std::vector<std::uint8_t> {
+  if (signature.signature.empty() || signature.signature.size() > 255U) {
+    throw std::invalid_argument("join signature must contain 1..255 bytes");
+  }
+  std::vector<std::uint8_t> encoded{
+      0, static_cast<std::uint8_t>(signature.signature.size())};
+  encoded.insert(encoded.end(), signature.signature.begin(),
+                 signature.signature.end());
+  return encoded;
+}
+
+auto event_semantic(std::string_view name) -> std::optional<EventSemantic> {
+  struct NamedSemantic {
+    std::string_view name;
+    EventSemantic semantic;
+  };
+  constexpr std::array mappings{
+      NamedSemantic{"tamper", {1U, true}},
+      NamedSemantic{"water-dry", {2U, false}},
+      NamedSemantic{"water-wet", {2U, true}},
+      NamedSemantic{"motion", {3U, true}},
+      NamedSemantic{"contact-closed", {4U, false}},
+      NamedSemantic{"contact-opened", {4U, true}},
+      NamedSemantic{"glass-break", {5U, true}},
+      NamedSemantic{"heartbeat", {6U, true}},
+      NamedSemantic{"supervision", {6U, true}},
+      NamedSemantic{"panic-pressed", {7U, true}},
+      NamedSemantic{"heartbeat-secondary", {8U, true}},
+      NamedSemantic{"relay-input-closed", {9U, false}},
+      NamedSemantic{"relay-input-opened", {9U, true}},
+      NamedSemantic{"reverse-contact-opened", {10U, false}},
+      NamedSemantic{"reverse-contact-closed", {10U, true}},
+  };
+  const auto match = std::find_if(
+      mappings.begin(), mappings.end(),
+      [name](const NamedSemantic& candidate) { return candidate.name == name; });
+  if (match == mappings.end()) return std::nullopt;
+  return match->semantic;
+}
+
+auto parse_event_request(std::span<const std::uint8_t> body)
+    -> EventRequestResult {
+  if (body.size() < 6U) {
+    return ParseError{ParseErrorCode::Truncated, "EventReq", body.size(),
+                      "six-byte EventReq prefix is truncated"};
+  }
+  if (body[1] > 1U) {
+    return ParseError{ParseErrorCode::InvalidField, "EventReq", 1,
+                      "EventReq active must be zero or one"};
+  }
+  EventRequest event{};
+  event.type = body[0];
+  event.active = body[1] == 1U;
+  event.age_ms = load_be32(
+      std::array<std::uint8_t, 4>{body[2], body[3], body[4], body[5]});
+  std::size_t offset = 6;
+  while (offset < body.size()) {
+    if (body.size() - offset < 2U) {
+      return ParseError{ParseErrorCode::Truncated, "EventReq TLV", offset,
+                        "EventReq TLV header is truncated"};
+    }
+    const auto type = body[offset];
+    const auto length = static_cast<std::size_t>(body[offset + 1U]);
+    offset += 2U;
+    if (length > body.size() - offset) {
+      return ParseError{ParseErrorCode::Truncated, "EventReq TLV", offset,
+                        "EventReq TLV value is truncated"};
+    }
+    event.tlvs.push_back(EventTlv{
+        type, std::vector<std::uint8_t>(
+                  body.begin() + static_cast<std::ptrdiff_t>(offset),
+                  body.begin() + static_cast<std::ptrdiff_t>(offset + length))});
+    offset += length;
+  }
+  return event;
+}
+
+auto encode_event_request(const EventRequest& event)
+    -> std::vector<std::uint8_t> {
+  const auto age = store_be32(event.age_ms);
+  std::vector<std::uint8_t> encoded{event.type,
+                                    static_cast<std::uint8_t>(event.active),
+                                    age[0], age[1], age[2], age[3]};
+  for (const auto& tlv : event.tlvs) {
+    if (tlv.value.size() > 255U || encoded.size() + 2U + tlv.value.size() > 255U) {
+      throw std::invalid_argument("EventReq TLVs exceed one-byte bounds");
+    }
+    encoded.push_back(tlv.type);
+    encoded.push_back(static_cast<std::uint8_t>(tlv.value.size()));
+    encoded.insert(encoded.end(), tlv.value.begin(), tlv.value.end());
+  }
+  return encoded;
+}
+
+auto parse_sense_ack_request(std::span<const std::uint8_t> body)
+    -> SenseAckRequestResult {
+  if (body.size() != 4U) {
+    return ParseError{ParseErrorCode::InvalidField, "SenseAckReq", body.size(),
+                      "SenseAckReq must contain exactly four bytes"};
+  }
+  return SenseAckRequest{load_be32(
+      std::array<std::uint8_t, 4>{body[0], body[1], body[2], body[3]})};
+}
+
+auto encode_sense_ack_request(const SenseAckRequest& acknowledgement)
+    -> std::vector<std::uint8_t> {
+  const auto value = store_be32(acknowledgement.event_id);
+  return {value.begin(), value.end()};
 }
 
 }  // namespace bh61::core

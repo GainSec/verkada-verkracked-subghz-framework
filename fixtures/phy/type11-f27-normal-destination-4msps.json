@@ -5,7 +5,7 @@
   "sample_count": 13400,
   "center_frequency_hz": null,
   "classification": "synthetic",
-  "frame_hex": "1a41c800ff01010000000000000000000b00338b00000100000e3a",
+  "frame_hex": "1a41c800ff01010000000000000000000b00338b0000010000705c",
   "waveform_model": "analytic_half_sine_oqpsk",
   "orientation": "even_chips_on_i",
   "chip_polarity": "zero_is_positive",
@@ -15,6 +15,6 @@
   "duration_seconds": 0.00335,
   "total_symbols": 67,
   "total_chips": 2144,
-  "sha256": "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa",
-  "boundary": "Deterministic independently generated analytical candidate. It has not been demonstrated as bit-for-bit or waveform-exact against physical BH hardware."
+  "sha256": "898f2f9ed7b5225374a701f9b2942bc35f023f691964b26b708ff788a1f401bb",
+  "boundary": "Deterministic analytical waveform. Framing and radio-FCS serialization were validated on owner-controlled hardware. The analytical baseband waveform is not asserted to be hardware-exact."
 }

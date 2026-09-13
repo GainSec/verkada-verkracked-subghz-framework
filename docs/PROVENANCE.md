@@ -24,6 +24,8 @@ Use these labels consistently:
 | VCMP structural parsing and CRC | Independently reconstructed; behaviorally reproduced | Encrypted bodies are structural; no live key is supplied |
 | Typed scan/counter/join parsing | Statically recovered; independently reconstructed | Unknown fields remain opaque |
 | Session/counter state model | Independently reconstructed | Model behavior is not physical confirmation |
+| Synthetic sensor identity and persistent lifecycle | Independently authored; behaviorally reproduced | Fresh operator-created identities; private scalar is not a public fixture |
+| Join, intended-event, and read-only coordinator runner | Independently reconstructed; behaviorally reproduced in portable tests | Public deterministic fixture and fake coordinator; physical validation evidence is not shipped |
 | DSSS dictionary | Independently reconstructed; analytically modeled | Not claimed waveform-exact |
 | OQPSK waveform fixture | Analytically modeled; independently generated | `hardware_exact=false`; not physically validated |
 | Acquisition/demodulation | Behaviorally reproduced on synthetic/impaired inputs | Live BH-series RF validation not claimed here |
@@ -31,7 +33,7 @@ Use these labels consistently:
 | HackRF RX transport | Independently authored; behaviorally reproduced with test transport | Native hardware test depends on local libhackrf/device; CLI selection incomplete |
 | EFR32 parser/peer model | Independently reconstructed | Not cycle-accurate; vulnerability-specific behavior excluded |
 | i.MX7/EFR32 processor relationship | Statically recovered | Exact physical transport mapping unknown |
-| BH61 end-to-end RF interoperability | Unknown in this public tree | Requires owner-supplied physical validation evidence |
+| BH61 end-to-end RF interoperability | Privately validated on owner-controlled hardware; not reproducible from shipped evidence alone | Requires owner-supplied physical validation evidence |
 | BH31 compatibility | Hypothesized / expected but unverified | Do not infer from BH61 modeling |
 
 Implementation is evidence of software behavior, not evidence that a physical

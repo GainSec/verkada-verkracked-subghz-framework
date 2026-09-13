@@ -3,6 +3,7 @@
 #include <array>
 #include <chrono>
 #include <iomanip>
+#include <cstring>
 #include <sstream>
 #include <utility>
 
@@ -80,6 +81,9 @@ auto LibhackrfFunctions::native() -> LibhackrfFunctions {
           [](hackrf_device* device, std::uint32_t value) {
             return hackrf_set_vga_gain(device, value);
           },
+          [](hackrf_device* device, std::uint32_t value) {
+            return hackrf_set_txvga_gain(device, value);
+          },
           [](hackrf_device* device, std::uint8_t value) {
             return hackrf_set_amp_enable(device, value);
           },
@@ -90,7 +94,16 @@ auto LibhackrfFunctions::native() -> LibhackrfFunctions {
              void* context) {
             return hackrf_start_rx(device, callback, context);
           },
-          [](hackrf_device* device) { return hackrf_stop_rx(device); }};
+          [](hackrf_device* device) { return hackrf_stop_rx(device); },
+          [](hackrf_device* device, hackrf_flush_cb_fn callback,
+             void* context) {
+            return hackrf_enable_tx_flush(device, callback, context);
+          },
+          [](hackrf_device* device, hackrf_sample_block_cb_fn callback,
+             void* context) {
+            return hackrf_start_tx(device, callback, context);
+          },
+          [](hackrf_device* device) { return hackrf_stop_tx(device); }};
 }
 
 LibhackrfTransport::LibhackrfTransport(LibhackrfFunctions functions)
@@ -105,6 +118,10 @@ LibhackrfTransport::LibhackrfTransport(LibhackrfFunctions functions)
 }
 
 LibhackrfTransport::~LibhackrfTransport() {
+  if (tx_started_ && device_ != nullptr) {
+    static_cast<void>(functions_.stop_tx(device_));
+    tx_started_ = false;
+  }
   if (rx_started_ && device_ != nullptr) {
     static_cast<void>(functions_.stop_rx(device_));
     rx_started_ = false;
@@ -180,6 +197,9 @@ auto LibhackrfTransport::configure(const HackrfConfiguration& configuration)
                   "hackrf_set_lna_gain");
   require_success(functions_.set_vga_gain(device_, configuration.vga_gain_db),
                   "hackrf_set_vga_gain");
+  require_success(functions_.set_tx_vga_gain(
+                      device_, configuration.tx_vga_gain_db),
+                  "hackrf_set_txvga_gain");
   require_success(
       functions_.set_amplifier(device_,
                                configuration.amplifier_enabled ? 1U : 0U),
@@ -229,13 +249,65 @@ void LibhackrfTransport::close() {
   if (rx_started_) {
     stop_rx();
   }
+  if (tx_started_) {
+    require_success(functions_.stop_tx(device_), "hackrf_stop_tx");
+    tx_started_ = false;
+  }
   auto* closing = device_;
   device_ = nullptr;
   require_success(functions_.close(closing), "hackrf_close");
 }
 
-void LibhackrfTransport::transmit(std::span<const std::int8_t>) {
-  throw std::logic_error("native HackRF TX is unavailable in this build");
+void LibhackrfTransport::transmit(std::span<const std::int8_t> bytes) {
+  if (device_ == nullptr) {
+    throw std::logic_error("HackRF TX requires an open device");
+  }
+  if (rx_started_ || tx_started_) {
+    throw std::logic_error("HackRF is already streaming");
+  }
+  if (bytes.empty() || bytes.size() % 2U != 0U) {
+    throw std::invalid_argument("HackRF TX requires nonempty interleaved IQ");
+  }
+  {
+    std::lock_guard lock(tx_mutex_);
+    tx_bytes_.assign(bytes.begin(), bytes.end());
+    tx_offset_ = 0U;
+    tx_flush_result_ = HACKRF_SUCCESS;
+    tx_flushed_ = false;
+  }
+  require_success(functions_.enable_tx_flush(
+                      device_, &LibhackrfTransport::tx_flush_thunk, this),
+                  "hackrf_enable_tx_flush");
+  try {
+    require_success(
+        functions_.start_tx(device_, &LibhackrfTransport::tx_thunk, this),
+        "hackrf_start_tx");
+    tx_started_ = true;
+  } catch (...) {
+    std::lock_guard lock(tx_mutex_);
+    tx_bytes_.clear();
+    throw;
+  }
+  {
+    std::unique_lock lock(tx_mutex_);
+    if (!tx_condition_.wait_for(lock, std::chrono::seconds(30),
+                                [this] { return tx_flushed_; })) {
+      lock.unlock();
+      const auto stop_result = functions_.stop_tx(device_);
+      tx_started_ = false;
+      require_success(stop_result, "hackrf_stop_tx");
+      throw std::runtime_error("HackRF TX flush timed out");
+    }
+  }
+  const auto stop_result = functions_.stop_tx(device_);
+  tx_started_ = false;
+  require_success(stop_result, "hackrf_stop_tx");
+  std::lock_guard lock(tx_mutex_);
+  tx_bytes_.clear();
+  if (tx_flush_result_ != HACKRF_SUCCESS) {
+    throw NativeHackrfError("hackrf_tx_flush", tx_flush_result_,
+                            "transmission flush failed");
+  }
 }
 
 auto LibhackrfTransport::rx_thunk(hackrf_transfer* transfer) -> int {
@@ -243,6 +315,43 @@ auto LibhackrfTransport::rx_thunk(hackrf_transfer* transfer) -> int {
     return -1;
   }
   return static_cast<LibhackrfTransport*>(transfer->rx_ctx)->on_rx(transfer);
+}
+
+auto LibhackrfTransport::tx_thunk(hackrf_transfer* transfer) -> int {
+  if (transfer == nullptr || transfer->tx_ctx == nullptr) return -1;
+  return static_cast<LibhackrfTransport*>(transfer->tx_ctx)->on_tx(transfer);
+}
+
+void LibhackrfTransport::tx_flush_thunk(void* context, int result) {
+  if (context == nullptr) return;
+  auto* self = static_cast<LibhackrfTransport*>(context);
+  {
+    std::lock_guard lock(self->tx_mutex_);
+    self->tx_flush_result_ = result;
+    self->tx_flushed_ = true;
+  }
+  self->tx_condition_.notify_all();
+}
+
+auto LibhackrfTransport::on_tx(hackrf_transfer* transfer) noexcept -> int {
+  try {
+    std::lock_guard lock(tx_mutex_);
+    if (transfer->buffer == nullptr || transfer->buffer_length <= 0 ||
+        transfer->buffer_length % 2 != 0 || tx_offset_ >= tx_bytes_.size()) {
+      transfer->valid_length = 0;
+      return -1;
+    }
+    const auto remaining = tx_bytes_.size() - tx_offset_;
+    const auto count = std::min(
+        remaining, static_cast<std::size_t>(transfer->buffer_length));
+    std::memcpy(transfer->buffer, tx_bytes_.data() + tx_offset_, count);
+    transfer->valid_length = static_cast<int>(count);
+    tx_offset_ += count;
+    return tx_offset_ == tx_bytes_.size() ? -1 : 0;
+  } catch (...) {
+    transfer->valid_length = 0;
+    return -1;
+  }
 }
 
 auto LibhackrfTransport::on_rx(hackrf_transfer* transfer) noexcept -> int {

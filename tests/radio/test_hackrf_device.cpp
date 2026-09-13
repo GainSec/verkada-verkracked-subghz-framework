@@ -35,7 +35,11 @@ BH61_TEST("HackRF device selects identity and performs one clean lifecycle") {
   BH61_REQUIRE(device.realized_configuration().sample_rate == 4'000'000U);
   const auto capabilities = device.capabilities();
   BH61_REQUIRE(capabilities.rx);
+#if defined(BH61_ENABLE_TX)
+  BH61_REQUIRE(capabilities.tx);
+#else
   BH61_REQUIRE(!capabilities.tx);
+#endif
   BH61_REQUIRE(!capabilities.full_duplex);
   device.start_receive();
   device.stop();
@@ -135,7 +139,7 @@ BH61_TEST("HackRF receive distinguishes timeout cancellation and removal") {
   BH61_REQUIRE(cancelled.status == bh61::radio::SampleBlockStatus::Cancelled);
 }
 
-BH61_TEST("HackRF configuration failure closes transport and RX cannot transmit") {
+BH61_TEST("HackRF configuration failure closes transport") {
   bh61::test::FakeHackrfTransport transport;
   transport.attached = {identity("target")};
   transport.fail_configuration = true;
@@ -150,20 +154,35 @@ BH61_TEST("HackRF configuration failure closes transport and RX cannot transmit"
   BH61_REQUIRE(failed);
   BH61_REQUIRE(transport.close_calls == 1U);
 
-  bh61::test::FakeHackrfTransport rx_transport;
-  rx_transport.attached = {identity("target")};
-  bh61::radio::HackrfDevice rx_device(rx_transport, configuration(),
-                                      std::chrono::milliseconds(1));
-  bool tx_rejected = false;
-  try {
-    constexpr std::array<std::complex<float>, 1> samples{
-        std::complex<float>{0.0F, 0.0F}};
-    rx_device.transmit(samples, 0U);
-  } catch (const std::logic_error&) {
-    tx_rejected = true;
+}
+
+BH61_TEST("HackRF transmit obeys build capability and converts CF32") {
+  bh61::test::FakeHackrfTransport transport;
+  transport.attached = {identity("target")};
+  bh61::radio::HackrfDevice device(transport, configuration(),
+                                   std::chrono::milliseconds(1));
+  device.open();
+  constexpr std::array<std::complex<float>, 2> samples{
+      std::complex<float>{-1.0F, 127.0F / 128.0F},
+      std::complex<float>{0.5F, -0.5F}};
+#if defined(BH61_ENABLE_TX)
+  device.transmit(samples, 0U);
+  BH61_REQUIRE(transport.transmit_calls == 1U);
+  constexpr std::array<std::int8_t, 4> expected{-128, 127, 64, -64};
+  BH61_REQUIRE(transport.transmitted_bytes.size() == expected.size());
+  for (std::size_t index = 0; index < expected.size(); ++index) {
+    BH61_REQUIRE(transport.transmitted_bytes[index] == expected[index]);
   }
-  BH61_REQUIRE(tx_rejected);
-  BH61_REQUIRE(rx_transport.transmit_calls == 0U);
+#else
+  bool rejected = false;
+  try {
+    device.transmit(samples, 0U);
+  } catch (const std::logic_error&) {
+    rejected = true;
+  }
+  BH61_REQUIRE(rejected);
+  BH61_REQUIRE(transport.transmit_calls == 0U);
+#endif
 }
 
 BH61_TEST("HackRF device repeats one hundred complete receive lifecycles") {

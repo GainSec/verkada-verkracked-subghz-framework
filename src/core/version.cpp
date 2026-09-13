@@ -15,6 +15,15 @@ auto build_capabilities() noexcept -> std::span<const BuildCapability> {
       BuildCapability{"hackrf-tx", false, true},
 #endif
 #endif
+#if defined(BH61_HAVE_UHD)
+      BuildCapability{"uhd-rx", true, false},
+#if defined(BH61_ENABLE_TX)
+      BuildCapability{"uhd-tx", false, true},
+#endif
+#endif
+#if defined(BH61_HAVE_RTLSDR)
+      BuildCapability{"rtlsdr", true, false},
+#endif
   };
   return capabilities;
 }

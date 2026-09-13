@@ -41,5 +41,6 @@ using RadioFrameResult = std::variant<RadioFrame, ParseError>;
 auto parse_radio_frame(std::span<const std::uint8_t> bytes)
     -> RadioFrameResult;
 auto encode_radio_frame(const RadioFrame& frame) -> std::vector<std::uint8_t>;
+auto encode_mac_ack_frame(std::uint8_t sequence) -> std::vector<std::uint8_t>;
 
 }  // namespace bh61::core

@@ -11,7 +11,12 @@ function(bh61_add_test test_name)
 endfunction()
 
 bh61_add_test(bh61-build-smoke-tests test_main.cpp)
+bh61_add_test(bh61-wireshark-tool-tests research/test_wireshark_tool.cpp)
+target_compile_definitions(
+  bh61-wireshark-tool-tests PRIVATE BH61_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
 bh61_add_test(bh61-crc-tests core/test_crc16.cpp)
+bh61_add_test(bh61-sensor-model-tests core/test_sensor_model.cpp)
 bh61_add_test(
   bh61-frame-tests
   core/test_frame.cpp
@@ -23,6 +28,8 @@ bh61_add_test(
   core/test_messages.cpp
   core/test_session.cpp
 )
+bh61_add_test(bh61-p256-tests core/test_p256.cpp)
+bh61_add_test(bh61-sensor-session-tests core/test_sensor_session.cpp)
 bh61_add_test(bh61-dsss-tests dsp/test_dsss.cpp)
 target_link_libraries(bh61-dsss-tests PRIVATE bh61_dsp)
 bh61_add_test(
@@ -45,6 +52,7 @@ bh61_add_test(
   radio/test_file_device.cpp
   evidence/test_writer.cpp
   evidence/test_passive_capture.cpp
+  evidence/test_lab_event.cpp
 )
 target_link_libraries(
   bh61-file-evidence-tests
@@ -54,6 +62,10 @@ bh61_add_test(bh61-hackrf-types-tests radio/test_hackrf_types.cpp)
 target_link_libraries(bh61-hackrf-types-tests PRIVATE bh61_radio)
 bh61_add_test(bh61-hackrf-device-tests radio/test_hackrf_device.cpp)
 target_link_libraries(bh61-hackrf-device-tests PRIVATE bh61_radio)
+bh61_add_test(bh61-uhd-device-tests radio/test_uhd_device.cpp)
+target_link_libraries(bh61-uhd-device-tests PRIVATE bh61_radio)
+bh61_add_test(bh61-rtlsdr-device-tests radio/test_rtlsdr_device.cpp)
+target_link_libraries(bh61-rtlsdr-device-tests PRIVATE bh61_radio)
 bh61_add_test(bh61-device-factory-tests radio/test_device_factory.cpp)
 target_link_libraries(bh61-device-factory-tests PRIVATE bh61_radio)
 if(BH61_HAVE_HACKRF)
@@ -70,4 +82,11 @@ bh61_add_test(bh61-cli-tests apps/test_cli.cpp)
 target_link_libraries(
   bh61-cli-tests
   PRIVATE bh61_app bh61_dsp bh61_radio bh61_evidence
+)
+bh61_add_test(
+  bh61-sensor-session-runner-tests
+  apps/test_sensor_session_runner.cpp
+)
+target_link_libraries(
+  bh61-sensor-session-runner-tests PRIVATE bh61_app bh61_dsp bh61_radio
 )

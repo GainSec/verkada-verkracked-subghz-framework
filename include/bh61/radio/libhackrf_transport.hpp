@@ -5,8 +5,10 @@
 #include <libhackrf/hackrf.h>
 
 #include <cstdint>
+#include <condition_variable>
 #include <functional>
 #include <span>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -45,10 +47,15 @@ struct LibhackrfFunctions {
   std::function<int(hackrf_device*, std::uint64_t)> set_frequency;
   std::function<int(hackrf_device*, std::uint32_t)> set_lna_gain;
   std::function<int(hackrf_device*, std::uint32_t)> set_vga_gain;
+  std::function<int(hackrf_device*, std::uint32_t)> set_tx_vga_gain;
   std::function<int(hackrf_device*, std::uint8_t)> set_amplifier;
   std::function<int(hackrf_device*, std::uint8_t)> set_antenna_power;
   std::function<int(hackrf_device*, hackrf_sample_block_cb_fn, void*)> start_rx;
   std::function<int(hackrf_device*)> stop_rx;
+  std::function<int(hackrf_device*, hackrf_flush_cb_fn, void*)>
+      enable_tx_flush;
+  std::function<int(hackrf_device*, hackrf_sample_block_cb_fn, void*)> start_tx;
+  std::function<int(hackrf_device*)> stop_tx;
 
   static auto native() -> LibhackrfFunctions;
 };
@@ -73,7 +80,10 @@ class LibhackrfTransport final : public HackrfTransport {
 
  private:
   static auto rx_thunk(hackrf_transfer* transfer) -> int;
+  static auto tx_thunk(hackrf_transfer* transfer) -> int;
+  static void tx_flush_thunk(void* context, int result);
   auto on_rx(hackrf_transfer* transfer) noexcept -> int;
+  auto on_tx(hackrf_transfer* transfer) noexcept -> int;
   void require_success(int result, std::string_view operation) const;
   auto read_identity(std::string serial, hackrf_device* device) const
       -> HackrfIdentity;
@@ -83,6 +93,13 @@ class LibhackrfTransport final : public HackrfTransport {
   HackrfRxCallback receive_callback_;
   bool initialized_{};
   bool rx_started_{};
+  std::mutex tx_mutex_;
+  std::condition_variable tx_condition_;
+  std::vector<std::int8_t> tx_bytes_;
+  std::size_t tx_offset_{};
+  int tx_flush_result_{};
+  bool tx_flushed_{};
+  bool tx_started_{};
 };
 
 }  // namespace bh61::radio

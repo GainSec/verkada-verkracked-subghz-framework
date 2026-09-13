@@ -26,6 +26,7 @@ struct AcquisitionHypothesis {
   double phase_radians{};
   double score{};
   double runner_up_score{};
+  double sample_clock_correction_ppm{};
 };
 
 struct AcquisitionError {
@@ -34,6 +35,13 @@ struct AcquisitionError {
 
 using AcquisitionResult =
     std::variant<AcquisitionHypothesis, AcquisitionError>;
+using AcquisitionCandidatesResult =
+    std::variant<std::vector<AcquisitionHypothesis>, AcquisitionError>;
+
+auto acquire_training_candidates(
+    std::span<const std::complex<float>> samples,
+    std::uint32_t sample_rate,
+    const AcquisitionOptions& options) -> AcquisitionCandidatesResult;
 
 auto acquire_training(std::span<const std::complex<float>> samples,
                       std::uint32_t sample_rate,

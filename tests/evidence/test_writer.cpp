@@ -54,7 +54,7 @@ BH61_TEST("evidence writer emits reopenable SigMF JSONL and SHA256 manifest") {
           "2026-08-22T14:03:00.000000Z", 98'765U, false});
   writer.append_decoded_event(bh61::evidence::DecodedEvent{
       "2026-08-22T14:03:00.001000Z", 99'765U,
-      "1a41c800ff01010000000000000000000b00338b00000100000e3a", 0.997,
+      "1a41c800ff01010000000000000000000b00338b0000010000705c", 0.997,
       17U, false, -1'000.0});
   writer.append_discontinuity(bh61::evidence::DiscontinuityEvent{
       "2026-08-22T14:03:00.002000Z", 100'765U, 42U, "source gap"});

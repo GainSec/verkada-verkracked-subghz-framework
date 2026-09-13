@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -52,6 +53,17 @@ using RpcResult = std::variant<RpcMessage, ParseError>;
 auto parse_rpc(std::span<const std::uint8_t> bytes) -> RpcResult;
 auto encode_rpc(const RpcMessage& rpc) -> std::vector<std::uint8_t>;
 
+struct AckResponse {
+  std::uint32_t status{};
+  std::vector<std::uint8_t> message;
+};
+
+using AckResponseResult = std::variant<AckResponse, ParseError>;
+auto parse_ack_response(std::span<const std::uint8_t> body)
+    -> AckResponseResult;
+auto encode_ack_response(const AckResponse& response)
+    -> std::vector<std::uint8_t>;
+
 struct JoinTlv {
   std::uint8_t tag{};
   std::vector<std::uint8_t> value;
@@ -72,5 +84,71 @@ struct JoinRequest {
 using JoinResult = std::variant<JoinRequest, ParseError>;
 auto parse_join_request(std::span<const std::uint8_t> body) -> JoinResult;
 auto encode_join_request(const JoinRequest& join) -> std::vector<std::uint8_t>;
+
+struct JoinResponse {
+  std::uint8_t format{};
+  std::array<std::uint8_t, 64> local_public_xy{};
+  std::array<std::uint8_t, 16> reserved{};
+  std::array<std::uint8_t, 4> remote_public_hash{};
+  std::uint16_t local_counter{};
+  std::uint16_t remote_counter{};
+
+  auto operator==(const JoinResponse&) const -> bool = default;
+};
+
+using JoinResponseResult = std::variant<JoinResponse, ParseError>;
+auto parse_join_response(std::span<const std::uint8_t> body)
+    -> JoinResponseResult;
+auto encode_join_response(const JoinResponse& response)
+    -> std::vector<std::uint8_t>;
+
+struct JoinSignature {
+  std::vector<std::uint8_t> signature;
+};
+
+using JoinSignatureResult = std::variant<JoinSignature, ParseError>;
+auto parse_join_signature(std::span<const std::uint8_t> body)
+    -> JoinSignatureResult;
+auto encode_join_signature(const JoinSignature& signature)
+    -> std::vector<std::uint8_t>;
+
+struct EventTlv {
+  std::uint8_t type{};
+  std::vector<std::uint8_t> value;
+
+  auto operator==(const EventTlv&) const -> bool = default;
+};
+
+struct EventRequest {
+  std::uint8_t type{};
+  bool active{};
+  std::uint32_t age_ms{};
+  std::vector<EventTlv> tlvs;
+};
+
+struct EventSemantic {
+  std::uint8_t type{};
+  bool active{};
+
+  auto operator==(const EventSemantic&) const -> bool = default;
+};
+
+auto event_semantic(std::string_view name) -> std::optional<EventSemantic>;
+
+using EventRequestResult = std::variant<EventRequest, ParseError>;
+auto parse_event_request(std::span<const std::uint8_t> body)
+    -> EventRequestResult;
+auto encode_event_request(const EventRequest& event)
+    -> std::vector<std::uint8_t>;
+
+struct SenseAckRequest {
+  std::uint32_t event_id{};
+};
+
+using SenseAckRequestResult = std::variant<SenseAckRequest, ParseError>;
+auto parse_sense_ack_request(std::span<const std::uint8_t> body)
+    -> SenseAckRequestResult;
+auto encode_sense_ack_request(const SenseAckRequest& acknowledgement)
+    -> std::vector<std::uint8_t>;
 
 }  // namespace bh61::core

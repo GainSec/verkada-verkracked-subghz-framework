@@ -11,12 +11,12 @@ hardware, not validation performed by this project.
 |---|---|---|---|
 | [BH61 family][bh61-guide] | Frame, protocol, DSP, and EFR32 model | Static/reconstructed basis; no public live capture | Modeled; public physical validation not claimed |
 | BH31 family | Shared parser may apply | No BH31-specific public capture or physical test | Expected but unverified |
-| HackRF One/Pro | Enumeration, configuration, signed-IQ conversion, bounded RX queue, libhackrf adapter | Unit/fake-transport tests; native availability depends on host | RX library implemented; CLI capture selection incomplete |
-| File / raw `cf32_le` | Decode, scan, analytical generation, capture normalization | Portable tests | Supported and behaviorally reproduced |
+| HackRF One/Pro | Enumeration, bounded RX, immediate normal TX, and capture | Unit/fake-transport tests; native availability depends on host | Supported |
+| Ettus B210/UHD | Enumeration, RX, timed TX, coherent two-channel capture, and full-duplex synthetic-sensor sessions | Unit/fake-transport and stateful-runner tests; native availability depends on host | Supported |
+| RTL-SDR | Enumeration and bounded receive-only capture | Unit/fake-transport tests; native availability depends on host | Supported for RX only |
+| File / raw `cf32_le` | Decode, scan, generation, capture normalization, and deterministic TX | Portable tests | Supported |
 | SigMF `cf32_le` | Metadata/data input and passive output | Portable tests | Supported |
-| UHD/USRP | None | None | Unsupported |
-| RTL-SDR | None | None | Unsupported |
-| SDR transmission | No native implementation or CLI command | Offline file-device tests only | Unsupported over the air |
+| SDR transmission | Explicit build option and per-command acknowledgement | Fake-transport tests; operator hardware validation remains separate | Supported on HackRF and B210 |
 
 The vendor-documented BH61 peripheral family consists of the [BR31 door
 sensor][br31-guide], [BR32 motion sensor][br32-guide], [BR33 panic
@@ -24,12 +24,16 @@ button][br33-guide], [BR34 glass-break sensor][br34-guide], [BR35 water-leak
 sensor][br35-guide], and [BX21 wireless relay][bx21-guide]. Their inclusion here
 provides ecosystem context and does not claim individual physical validation.
 
-Offline fixture, raw `cf32_le`, and SigMF analysis requires no SDR. Passive
-live-RF work requires a HackRF One or HackRF Pro, libhackrf development files,
-a data-capable USB connection, and a receive antenna appropriate for the
-operator's regional band. Direct HackRF-to-`capture` CLI selection is not yet
-implemented, so the supported end-to-end CLI path currently starts with a raw
-`cf32_le` or SigMF file supplied by the operator.
+Offline fixture, raw `cf32_le`, and SigMF analysis requires no SDR. Native
+operation requires the corresponding development library, a data-capable USB
+connection, and an antenna appropriate for the operator's regional band.
+Transmission is disabled unless built with `BH61_ENABLE_TX=ON` and invoked with
+`--enable-tx`. RTL-SDR remains receive-only.
+
+Stateful join, intended event, and read-only request/response workflows require
+the B210 because they depend on full-duplex timing and continuous receive.
+HackRF supports the stateless normal transmit command, but it does not support
+the stateful sensor runner. RTL-SDR cannot transmit.
 
 Hardware integration tests require the operator's own receiver, BH hardware,
 RF-safe setup, and lawful regional configuration. Their absence is not a unit

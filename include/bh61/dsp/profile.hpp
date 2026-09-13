@@ -11,7 +11,7 @@ inline constexpr std::uint32_t bit_rate = 80'000;
 inline constexpr std::uint32_t symbol_rate = 20'000;
 inline constexpr std::uint32_t chip_rate = 640'000;
 inline constexpr std::size_t preamble_symbols = 10;
-inline constexpr std::array<std::uint8_t, 3> sync_symbols{0x00, 0x0e, 0x05};
+inline constexpr std::array<std::uint8_t, 3> sync_symbols{0x00, 0x07, 0x0a};
 inline constexpr std::array<std::uint8_t, 8> custom_oqpsk_taps{
     1, 1, 16, 48, 80, 112, 127, 127};
 

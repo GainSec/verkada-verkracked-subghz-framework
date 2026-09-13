@@ -9,7 +9,7 @@
       "metadata": "fixtures/phy/type11-f27-normal-destination-4msps.json",
       "path": "fixtures/phy/type11-f27-normal-destination-4msps.cf32",
       "physically_validated": false,
-      "sha256": "bcae4d289b994f4144d67319fcf11929cf9106c37e12fcb2c32000bd978d9caa"
+      "sha256": "898f2f9ed7b5225374a701f9b2942bc35f023f691964b26b708ff788a1f401bb"
     },
     {
       "classification": "independently-reconstructed",
@@ -19,7 +19,7 @@
       "identifiers_sanitized": true,
       "path": "fixtures/protocol/type11-f27-normal-destination.hex",
       "physically_validated": false,
-      "sha256": "c22a37cd1eb6497894a9c88adcf8c90eb36d82e63a67d0f4beb4d8c9a1a249be"
+      "sha256": "716c272759ecac0f7b765d089fd1cf34c7e143ac9268898df0346d5ebcb2dcc8"
     }
   ],
   "live_capture_present": false,

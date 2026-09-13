@@ -20,7 +20,7 @@ auto directory() -> std::filesystem::path {
 }
 
 constexpr std::string_view frame =
-    "1a41c800ff01010000000000000000000b00338b00000100000e3a";
+    "1a41c800ff01010000000000000000000b00338b0000010000705c";
 
 class TrackingDevice final : public bh61::radio::Device {
  public:
